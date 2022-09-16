@@ -1,0 +1,108 @@
+Prerequisite : Docker, kuberntes, minikube should be up and running.
+
+Create Quarkus Kubernetes intigrated application in java
+
+quarkus create app org.acme:kubernetes-quickstart --extension=resteasy,kubernetes,jib
+
+it will create project in your current directory like --> C:\Rambrij\Quarkus\kubernetes-quickstart
+
+Basic extension:
+ -quarkus-kubernets  - Quarkus offers the ability to automatically generate Kubernetes resources based on sane defaults and user-supplied configuration using dekorate
+ -jib - jib is tool to build and push docker image for quarkus application
+ 
+Import porject in Eclipse/IntelliJ IDEA
+
+Copy below lines into applcation.properties
+
+	quarkus.jib.base-jvm-image=fabric8/java-alpine-openjdk11-jre
+	quarkus.container-image.build=true
+	quarkus.container-image.push=true
+	quarkus.container-image.registry=docker.io
+	quarkus.container-image.username=<docker hub username>
+	quarkus.container-image.password=<docker hub password>
+	quarkus.container-image.group=<image group name>
+	quarkus.container-image.name=<image name>
+	
+Note: Make sure that docker configuration is right in order to push image into docker registery.
+
+replace the existing content of C:\Users\sasub\.docker\config.json file from below lines
+
+{
+	"auths": {
+		"https://index.docker.io/v1/": {}
+	},
+	"credsStore": "rambrij"
+}	
+
+Build or pack quarkus application
+
+	C:\Rambrij\Quarkus\poc-project\quarkus-kubernets-rest-api> mvn clean package or quarkus build
+	
+if build got suceed then image should be pushed to your docker registry.
+
+very the target folder you should be able to see target/kubernets/kubernets.yml or .json
+Open any of the file and replace ClusterIP with LoadBalancer
+
+Deploy application into kubernetes cluster
+
+C:\Rambrij\Quarkus\poc-project\quarkus-kubernets-rest-api>kubectl apply -f target/kubernetes/kubernetes.yml
+service/rest-api created
+deployment.apps/rest-api created
+
+verify the deployment
+
+C:\Rambrij\Quarkus>kubectl get all
+NAME                              READY   STATUS    RESTARTS      AGE
+pod/rest-api-67c94446fc-ghw6t     1/1     Running   0             114s
+
+NAME                 TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+service/kubernetes   ClusterIP      10.96.0.1       <none>        443/TCP        14h
+service/rest-api     LoadBalancer   10.104.47.94    <pending>     80:32064/TCP   114s
+
+NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/rest-api     1/1     1            1           114s
+
+NAME                                    DESIRED   CURRENT   READY   AGE
+replicaset.apps/rest-api-67c94446fc     1         1         1       114s
+
+Get running pod 
+C:\Rambrij\Quarkus>kubectl get pods
+NAME                          READY   STATUS    RESTARTS      AGE
+rest-api-67c94446fc-ghw6t     1/1     Running   0             3m8s
+
+check running container log
+C:\Rambrij\Quarkus>kubectl logs rest-api-67c94446fc-ghw6t
+__  ____  __  _____   ___  __ ____  ______
+ --/ __ \/ / / / _ | / _ \/ //_/ / / / __/
+ -/ /_/ / /_/ / __ |/ , _/ ,< / /_/ /\ \
+--\___\_\____/_/ |_/_/|_/_/|_|\____/___/
+2022-09-16 20:08:05,929 INFO  [io.quarkus] (main) quarkus-kubernets-rest-api 1.0.0-SNAPSHOT on JVM (powered by Quarkus 2.12.2.Final) started in 1.413s. Listening on: http://0.0.0.0:8080
+2022-09-16 20:08:05,962 INFO  [io.quarkus] (main) Profile prod activated.
+2022-09-16 20:08:05,962 INFO  [io.quarkus] (main) Installed features: [cdi, kubernetes, resteasy-reactive, smallrye-context-propagation, vertx]
+
+check running service 
+C:\Rambrij\Quarkus>kubectl get svc
+NAME         TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+kubernetes   ClusterIP      10.96.0.1       <none>        443/TCP        14h
+rest-api     LoadBalancer   10.104.47.94    <pending>     80:32064/TCP   6m12s
+
+lanuch the app using minikube
+
+C:\Rambrij\Quarkus>minikube service rest-api
+|-----------|----------|-------------|---------------------------|
+| NAMESPACE |   NAME   | TARGET PORT |            URL            |
+|-----------|----------|-------------|---------------------------|
+| default   | rest-api | http/80     | http://192.168.49.2:32064 |
+|-----------|----------|-------------|---------------------------|
+* Starting tunnel for service rest-api.
+|-----------|----------|-------------|------------------------|
+| NAMESPACE |   NAME   | TARGET PORT |          URL           |
+|-----------|----------|-------------|------------------------|
+| default   | rest-api |             | http://127.0.0.1:51512 |
+|-----------|----------|-------------|------------------------|
+* Opening service default/rest-api in default browser...
+! Because you are using a Docker driver on windows, the terminal needs to be open to run it.
+
+open rest api url in browser http://127.0.0.1:51512/hello
+
+
